@@ -9,7 +9,15 @@ const TECH_SUBREDDITS = [
   'Python',
   'artificial',
   'devops',
-  'opensource'
+  'opensource',
+  'reactjs', 'node', 'typescript', 'rust', 'golang',
+  'aws', 'docker', 'kubernetes', 'datascience', 'deeplearning',
+  'github', 'linux', 'cybersecurity', 'cloudcomputing',
+  'mongodb', 'postgresql', 'sql', 'database',
+  'frontend', 'backend', 'fullstack', 'webassembly','claudeai', 
+  'gemini', 'chatgpt', 'llm', 'Java', 'kotlin', 'swift', 'scala', 'cpp',
+  'angular', 'nextjs', 'svelte', 'fastapi', 'django', 'flask', 'spring', 'laravel',
+  'SpringBoot', 'web3', 'microservices', 'serverless',
 ];
 
 const HEADERS = {
