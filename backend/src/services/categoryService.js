@@ -1,13 +1,16 @@
 const CATEGORIES = {
-  'AI': ['ai', 'llm', 'gpt', 'claude', 'gemini', 'pytorch', 
-         'tensorflow', 'machine learning', 'deep learning', 'nlp'],
-  'Languages': ['python', 'javascript', 'typescript', 'rust', 
-                'golang', 'java', 'kotlin', 'swift', 'scala', 'c++'],
-  'DevOps': ['docker', 'kubernetes', 'ci/cd', 'devops', 
-             'terraform', 'linux', 'aws', 'azure', 'gcp'],
-  'Database': ['mongodb', 'postgresql', 'redis', 'mysql', 
-               'elasticsearch', 'supabase', 'prisma'],
-  'Frontend': ['react', 'vue', 'angular', 'nextjs', 'svelte', 'webassembly'],
+  'AI': ['ai', 'machine learning', 'deep learning', 'llm', 'gpt',
+    'chatgpt', 'claude', 'gemini', 'tensorflow', 'pytorch',
+    'neural network', 'nlp', 'computer vision'],
+  'Languages': ['python', 'javascript', 'typescript', 'rust', 'golang', 'java',
+    'kotlin', 'swift', 'php', 'ruby', 'scala', 'cpp', 'c++'],
+  'DevOps': ['docker', 'kubernetes', 'aws', 'azure', 'gcp',
+    'terraform', 'devops', 'ci/cd', 'linux',
+    'microservices', 'serverless', 'edge computing'],
+  'Database': [ 'mongodb', 'postgresql', 'mysql', 'redis', 'elasticsearch',
+    'sqlite', 'supabase', 'prisma'],
+  'Frontend': ['react', 'vue', 'angular', 'nextjs', 'svelte',
+    'webassembly', 'wasm'],
 };
 
 function getCategory(keywords) {
