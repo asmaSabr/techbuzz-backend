@@ -1,5 +1,6 @@
 require('dotenv').config();
 const axios = require('axios');
+const { getCategory } = require('../services/categoryService');
 
 const TECH_SUBREDDITS = [
   'programming',
@@ -31,18 +32,28 @@ async function fetchSubredditPosts(subreddit, limit = 100) {
   const res = await axios.get(url, { headers: HEADERS });
   const posts = res.data.data.children;
 
-  return posts.map(({ data }) => ({
-    redditId:    data.id,
-    title:       data.title,
-    subreddit:   data.subreddit,
-    score:       data.score,
-    upvoteRatio: data.upvote_ratio,
-    numComments: data.num_comments,
-    url:         data.url,
-    flair:       data.link_flair_text || null,
-    createdAt:   new Date(data.created_utc * 1000),
-    collectedAt: new Date(),
-  }));
+  return posts.map(({ data }) => {
+     // On prend quelques mots-clés pour la classification
+    const keywords = [
+      data.subreddit.toLowerCase(),
+      ...(data.title.toLowerCase().split(' ')) // découper le titre en mots
+    ];
+    const category = getCategory(keywords);
+
+    return {
+        redditId:    data.id,
+        title:       data.title,
+        subreddit:   data.subreddit,
+        score:       data.score,
+        upvoteRatio: data.upvote_ratio,
+        numComments: data.num_comments,
+        url:         data.url,
+        flair:       data.link_flair_text || null,
+        createdAt:   new Date(data.created_utc * 1000),
+        collectedAt: new Date(),
+        category, // catégorie déterminée
+    }
+  });
 }
 
 async function fetchAllSubreddits() {
