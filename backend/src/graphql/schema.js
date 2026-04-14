@@ -7,14 +7,27 @@ const typeDefs = gql`
     url: String
   }
 
-  type Trend {
+ type Trend {
+  keyword: String
+  count: Int
+  totalScore: Int
+  avgScore: Int
+  totalComments: Int
+  momentum: Int          
+  avgSentiment: Float    
+  subreddits: [String]
+  topPost: TopPost
+}
+
+  type TrendSnapshot {
     keyword: String
     count: Int
     totalScore: Int
     avgScore: Int
-    totalComments: Int
-    subreddits: [String]
-    topPost: TopPost
+    momentum: Int
+    avgSentiment: Float
+    category: String
+    snapshotAt: String
   }
 
   type Post {
@@ -29,6 +42,8 @@ const typeDefs = gql`
     currentTrends: [Trend]
     history(limit: Int): [Post]
     bySubreddit(name: String): [Post]
+    trendHistory(keyword: String!, days: Int): [TrendSnapshot]
+    allSnapshots(days: Int): [TrendSnapshot]
   }
 
   type Subscription {
