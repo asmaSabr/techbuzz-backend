@@ -1,6 +1,8 @@
 require('dotenv').config();
 const axios = require('axios');
 const { getCategory } = require('../services/categoryService');
+const { addRawPosts } = require('../queues/postQueue');
+
 
 const TECH_SUBREDDITS = [
   'programming',
@@ -44,7 +46,7 @@ async function fetchSubredditPosts(subreddit, limit = 100) {
         redditId:    data.id,
         title:       data.title,
         content:     data.selftext || null,
-        author: data.author,
+        author:      data.author,
         subreddit:   data.subreddit,
         scoreRaw:    data.score,                  // score original
         scoreNorm:   Math.max(0, data.score),     // score borné
@@ -60,25 +62,29 @@ async function fetchSubredditPosts(subreddit, limit = 100) {
 }
 
 async function fetchAllSubreddits() {
-  const allPosts = [];
+  let totalAdded = 0;
 
   for (const sub of TECH_SUBREDDITS) {
     try {
       console.log(`[Collector] Fetching r/${sub}...`);
       const posts = await fetchSubredditPosts(sub);
-      allPosts.push(...posts);
+      console.log(`[Collector] r/${sub} → ${posts.length} posts collectés`);
 
-      // Pause 5 secondes entre chaque requête
-      // pour éviter d'être bloqué par Reddit
+      // 👉 Envoie directement dans la Raw Queue
+      const addedCount = await addRawPosts(posts);
+      console.log(`[Collector] r/${sub} → ${addedCount} posts envoyés dans raw_posts`);
+
+      totalAdded += addedCount;
+
+      // Pause pour éviter le blocage par Reddit
       await new Promise(r => setTimeout(r, 5000));
 
     } catch (err) {
-      console.error(`[Collector] Erreur r/${sub}:`, err.message);
+      console.error(`[Collector] Erreur r/${sub}:`, err.message); 
     }
   }
 
-  console.log(`[Collector] Total collecté : ${allPosts.length} posts`);
-  return allPosts;
+  console.log(`[Collector] Total envoyé dans la Raw Queue: ${totalAdded} posts`);
+  return totalAdded;
 }
-
 module.exports = { fetchAllSubreddits, fetchSubredditPosts };
