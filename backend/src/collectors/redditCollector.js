@@ -2,6 +2,8 @@ require('dotenv').config();
 const axios = require('axios');
 const { getCategory } = require('../services/categoryService');
 const { addRawPosts } = require('../queues/postQueue');
+const RawPost = require('../models/RawPost');
+
 
 
 const TECH_SUBREDDITS = [
@@ -74,6 +76,11 @@ async function fetchAllSubreddits() {
       const addedCount = await addRawPosts(posts);
       console.log(`[Collector] r/${sub} → ${addedCount} posts envoyés dans raw_posts`);
 
+      // 👉 Enregistre aussi dans MongoDB
+      for (const p of posts) {
+        await saveRawPost(p);
+      }
+
       totalAdded += addedCount;
 
       // Pause pour éviter le blocage par Reddit
@@ -86,5 +93,34 @@ async function fetchAllSubreddits() {
 
   console.log(`[Collector] Total envoyé dans la Raw Queue: ${totalAdded} posts`);
   return totalAdded;
+
+  // Fonction d'insertion dans RawPost Base de données (non utilisée directement, mais peut être utile pour tests ou autres usages)
+  async function saveRawPost(redditPost) {
+  try {
+    const post = new RawPost({
+      redditId: redditPost.id,
+      title: redditPost.title,
+      content: redditPost.selftext || null,
+      author: redditPost.author,
+      subreddit: redditPost.subreddit,
+      scoreRaw: redditPost.score,
+      upvoteRatio: redditPost.upvote_ratio,
+      numComments: redditPost.num_comments,
+      url: redditPost.url,
+      flair: redditPost.link_flair_text,
+      createdAt: new Date(redditPost.created_utc * 1000),
+    });
+
+    await post.save();
+    console.log(`[Collector] Post ${redditPost.id} inséré dans posts_raw`);
+  } catch (err) {
+    if (err.code === 11000) {
+      console.log(`[Collector] Post ${redditPost.id} déjà existant`);
+    } else {
+      console.error('[Collector] Erreur insertion:', err.message);
+    }
+  }
+}
+
 }
 module.exports = { fetchAllSubreddits, fetchSubredditPosts };
