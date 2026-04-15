@@ -7,7 +7,8 @@
     "dev": "nodemon src/app.js",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
-    "docker:logs": "docker compose logs -f"
+    "docker:logs": "docker compose logs -f",
+    "test": "jest"
   },
   "keywords": [],
   "author": "",
@@ -31,5 +32,8 @@
     "redis": "^5.11.0",
     "socket.io": "^4.8.3",
     "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
   }
 }
