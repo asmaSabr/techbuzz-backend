@@ -43,8 +43,11 @@ async function fetchSubredditPosts(subreddit, limit = 100) {
     return {
         redditId:    data.id,
         title:       data.title,
+        content:     data.selftext || null,
+        author: data.author,
         subreddit:   data.subreddit,
-        score:       data.score,
+        scoreRaw:    data.score,                  // score original
+        scoreNorm:   Math.max(0, data.score),     // score borné
         upvoteRatio: data.upvote_ratio,
         numComments: data.num_comments,
         url:         data.url,
