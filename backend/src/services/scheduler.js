@@ -1,54 +1,37 @@
 const cron = require('node-cron');
 const { fetchAllSubreddits } = require('../collectors/redditCollector');
-const { extractKeywords, computeTrends } = require('./trendService');
-const { publishTrends } = require('./redisService');
-const Post = require('../models/Post');
-const TrendSnapshot = require('../models/TrendSnapshot');
+const { addRawPosts } = require('../queues/postQueue');
 
 async function runCollection() {
-  console.log('\n[Scheduler] Début de la collecte...');
+  console.log('\n[Scheduler] ━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('[Scheduler] Début de la collecte...');
+  const startTime = Date.now();
 
-  // 1. Fetch Reddit
-  const posts = await fetchAllSubreddits();
+  try {
+    // 1. Fetch Reddit — seule responsabilité du scheduler
+    const posts = await fetchAllSubreddits();
+    console.log(`[Scheduler] ${posts.length} posts récupérés depuis Reddit`);
 
-  // 2. Extraire mots-clés et sauvegarder dans MongoDB
-  for (const post of posts) {
-    post.keywords = extractKeywords(post.title);
-    await Post.findOneAndUpdate(
-      { redditId: post.redditId },
-      post,
-      { upsert: true, returnDocument: 'after' }
-    );
+    // 2. Envoie dans BullMQ — le pipeline prend le relais
+    const count = await addRawPosts(posts);
+    console.log(`[Scheduler] ${count} posts uniques envoyés dans le pipeline`);
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`[Scheduler] Collecte terminée en ${duration}s`);
+    console.log('[Scheduler] ━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+  } catch (err) {
+    console.error('[Scheduler] Erreur lors de la collecte:', err.message);
   }
-  console.log(`[Scheduler] ${posts.length} posts sauvegardés`);
-
-  // 3. Calculer les tendances
-  const trends = await computeTrends();
-  console.log(`[Scheduler] ${trends.length} tendances calculées`);
-
-  // 4. Publier sur Redis
-  await publishTrends(trends);
-
-  // 5. Sauvegarder snapshots historiques ← ICI à l'intérieur
-  for (const trend of trends) {
-    await TrendSnapshot.create({
-      keyword:      trend.keyword,
-      count:        trend.count,
-      totalScore:   trend.totalScore,
-      avgScore:     trend.avgScore,
-      momentum:     trend.momentum,
-      avgSentiment: trend.avgSentiment,
-      snapshotAt:   new Date(),
-    });
-  }
-  console.log(`[Scheduler] ${trends.length} snapshots historiques sauvegardés`);
 }
 
 function startScheduler() {
-  runCollection().catch(console.error);
-  cron.schedule('*/10 * * * *', () => {
-    runCollection().catch(console.error);
-  });
+  // Lance immédiatement au démarrage
+  runCollection();
+
+  // Puis toutes les 10 minutes
+  cron.schedule('*/10 * * * *', runCollection);
+
   console.log('[Scheduler] Cron job démarré — collecte toutes les 10 min');
 }
 
