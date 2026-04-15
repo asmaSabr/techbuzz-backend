@@ -1,7 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
-const mongoose = require('mongoose');
+const connectDB = require('./config/db');
 const cors = require('cors');
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
@@ -19,8 +19,7 @@ const server = http.createServer(app);
 
 async function start() {
   // MongoDB
-  await mongoose.connect(process.env.MONGO_URI);
-  console.log('[MongoDB] Connecté');
+   await connectDB();
 
   // Redis
   await connectRedis();

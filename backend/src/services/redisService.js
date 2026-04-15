@@ -1,13 +1,5 @@
-const { createClient } = require('redis');
+const { publisher, subscriber } = require('../config/redis');
 
-const publisher  = createClient({ url: process.env.REDIS_URL });
-const subscriber = createClient({ url: process.env.REDIS_URL });
-
-async function connect() {
-  await publisher.connect();
-  await subscriber.connect();
-  console.log('[Redis] Connecté');
-}
 
 async function publishTrends(trends) {
   await publisher.publish('trends:update', JSON.stringify(trends));
@@ -20,4 +12,4 @@ async function getLatestTrends() {
   return cached ? JSON.parse(cached) : null;
 }
 
-module.exports = { connect, publishTrends, getLatestTrends, subscriber, publisher };
+module.exports = { publishTrends, getLatestTrends, subscriber };
