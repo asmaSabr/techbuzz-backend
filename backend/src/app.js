@@ -1,15 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const http = require('http');
-const connectDB = require('./config/db');
 const cors = require('cors');
 const { ApolloServer } = require('@apollo/server');
 const { expressMiddleware } = require('@apollo/server/express4');
 const { makeExecutableSchema } = require('@graphql-tools/schema');
 const { WebSocketServer } = require('ws');
 const { useServer } = require('graphql-ws/use/ws');
+
+const connectDB = require('./config/db');
 const { connectRedis } = require('./config/redis');
-const { publishTrends, getLatestTrends } = require('./services/redisService');
 const { startScheduler } = require('./services/scheduler');
 const { typeDefs } = require('./graphql/schema');
 const { resolvers } = require('./graphql/resolvers');
@@ -21,7 +21,6 @@ const server = http.createServer(app);
 async function start() {
   // MongoDB
    await connectDB();
-
   // Redis
   await connectRedis();
 
@@ -53,6 +52,11 @@ async function start() {
 
   // Scheduler
   startScheduler();
+  // Workers
+  require('./workers/cleanWorker');
+  require('./workers/nlpWorker');
+  require('./workers/trendWorker');
+
 
   server.listen(process.env.PORT || 3001, () => {
     console.log(`[Express] Serveur actif sur http://localhost:${process.env.PORT || 3001}`);
