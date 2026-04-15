@@ -17,6 +17,33 @@ const { resolvers } = require('./graphql/resolvers');
 const app = express();
 const server = http.createServer(app);
 
+const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
+const { createBullBoard } = require('@bull-board/api');
+const { ExpressAdapter } = require('@bull-board/express');
+
+const { rawQueue, processedQueue, enrichedQueue } = require('./queues/postQueue');
+
+// Crée l’adaptateur Express
+const serverAdapter = new ExpressAdapter();
+serverAdapter.setBasePath('/admin/queues');
+
+// Crée le dashboard Bull Board
+createBullBoard({
+  queues: [
+    new BullMQAdapter(rawQueue),
+    new BullMQAdapter(processedQueue),
+    new BullMQAdapter(enrichedQueue),
+  ],
+  serverAdapter,
+});
+
+// Route pour accéder au dashboard
+app.use('/admin/queues', serverAdapter.getRouter());
+
+
+
+
+
 
 async function start() {
   // MongoDB
