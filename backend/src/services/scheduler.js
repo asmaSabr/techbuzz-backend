@@ -46,10 +46,10 @@ async function runCollection() {
 
 function startScheduler() {
   runCollection().catch(console.error);
-  cron.schedule('*/5 * * * *', () => {
+  cron.schedule('*/10 * * * *', () => {
     runCollection().catch(console.error);
   });
-  console.log('[Scheduler] Cron job démarré — collecte toutes les 5 min');
+  console.log('[Scheduler] Cron job démarré — collecte toutes les 10 min');
 }
 
 module.exports = { startScheduler };
