@@ -1,6 +1,8 @@
 const { createWorker } = require('../queues/index');
 const { processedQueue } = require('../queues/postQueue');
 const { cleanPost } = require('../processors/cleanProcessor');
+const CleanPost = require('../models/CleanPost');
+
 
 let processedCount = 0;
 let failedCount    = 0;
@@ -13,6 +15,18 @@ const cleanWorker = createWorker('raw_posts', async (job) => {
   if (!cleaned) {
     failedCount++;
     return { skipped: true, reason: 'invalid post' };
+  }
+  // 2. Persiste dans posts_clean
+  try {
+    const doc = new CleanPost(cleaned);
+    await doc.save();
+    console.log(`[CleanWorker] Post ${cleaned.redditId} inséré dans posts_clean`);
+  } catch (err) {
+    if (err.code === 11000) {
+      console.log(`[CleanWorker] Post ${cleaned.redditId} déjà existant`);
+    } else {
+      console.error('[CleanWorker] Erreur insertion:', err.message);
+    }
   }
 
   // 2. Envoie vers la queue suivante
