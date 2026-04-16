@@ -14,6 +14,9 @@ const TrendSnapshotSchema = new mongoose.Schema({
   },
   category:      { type: String },
   snapshotAt:    { type: Date, default: Date.now },
+
+},{
+  collection: 'trend_snapshots'
 });
 
 // Index pour retrouver l’évolution d’un mot-clé
