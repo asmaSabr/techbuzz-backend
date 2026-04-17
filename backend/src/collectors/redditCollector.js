@@ -101,7 +101,7 @@ async function fetchAllSubreddits() {
   async function saveRawPost(redditPost) {
   try {
     const post = new RawPost({
-      redditId: redditPost.id,
+      redditId: redditPost.redditId,
       title: redditPost.title,
       content: redditPost.selftext || null,
       author: redditPost.author,
@@ -111,14 +111,15 @@ async function fetchAllSubreddits() {
       numComments: redditPost.num_comments,
       url: redditPost.url,
       flair: redditPost.link_flair_text,
-      createdAt: new Date(redditPost.created_utc * 1000),
+      createdAt: redditPost.createdAt,
+      collectedAt: redditPost.collectedAt,
     });
 
     await post.save();
-    console.log(`[Collector] Post ${redditPost.id} inséré dans posts_raw`);
+    console.log(`[Collector] Post ${redditPost.redditId} inséré dans posts_raw`);
   } catch (err) {
     if (err.code === 11000) {
-      console.log(`[Collector] Post ${redditPost.id} déjà existant`);
+      console.log(`[Collector] Post ${redditPost.redditId} déjà existant`);
     } else {
       console.error('[Collector] Erreur insertion:', err.message);
     }
