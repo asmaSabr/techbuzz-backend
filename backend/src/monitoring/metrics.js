@@ -41,5 +41,14 @@ const metrics = {
     help: 'MongoDB connecté — 1=oui 0=non'
   }),
 };
-
+// Initialise tout à 0 au démarrage
+metrics.jobsProcessed.inc({ worker: 'clean', status: 'success' }, 0);
+metrics.jobsProcessed.inc({ worker: 'nlp', status: 'success' }, 0);
+metrics.jobsProcessed.inc({ worker: 'trend', status: 'success' }, 0);
+metrics.jobsFailed.inc({ worker: 'clean' }, 0);
+metrics.jobsFailed.inc({ worker: 'nlp' }, 0);
+metrics.jobsFailed.inc({ worker: 'trend' }, 0);
+metrics.trendsComputed.set(0);
+metrics.redisConnected.set(0);
+metrics.mongoConnected.set(0);
 module.exports = { metrics, registry: client.register };
