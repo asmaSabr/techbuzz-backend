@@ -12,12 +12,14 @@ let failedCount  = 0;
 
 // Worker qui écoute la queue enriched_posts
 const trendWorker = createWorker('enriched_posts', async (job) => {
+    metrics.jobsProcessed.inc({ worker: 'trend', status: 'queued' });
     return { queued: true};
     },{
       concurrency: 1, 
     });
     setInterval(async () => {
     logger.info('[TrendWorker] Calcul périodique des tendances…');
+    const end = metrics.jobDuration.startTimer({ worker: 'trend' }); 
     try {
 
       // 1. Calcule les tendances
@@ -44,7 +46,10 @@ const trendWorker = createWorker('enriched_posts', async (job) => {
       metrics.jobsProcessed.inc({ worker: 'trend', status: 'error' });
       metrics.jobsFailed.inc({ worker: 'TrendWorker' });
       logger.error('[TrendWorker] Erreur calcul tendances:', err.message);
+    } finally {
+      end(); // ← toujours exécuté, succès ou erreur
     }
+
   }, 60000); // toutes les 60 secondesb
 
 // Stats toutes les minutes
