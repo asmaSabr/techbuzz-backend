@@ -3,6 +3,7 @@ const { processedQueue } = require('../queues/postQueue');
 const { cleanPost } = require('../processors/cleanProcessor');
 const CleanPost = require('../models/CleanPost');
 const logger = require('../utils/logger');
+const { metrics } = require('../monitoring/metrics');
 
 
 let processedCount = 0;
@@ -22,10 +23,14 @@ const cleanWorker = createWorker('raw_posts', async (job) => {
     const doc = new CleanPost(cleaned);
     await doc.save();
     logger.info(`[CleanWorker] Post ${cleaned.redditId} inséré dans posts_clean`);
+    metrics.jobsProcessed.inc({ worker: 'clean', status: 'success' });
   } catch (err) {
     if (err.code === 11000) {
       logger.info(`[CleanWorker] Post ${cleaned.redditId} déjà existant`);
+      metrics.jobsProcessed.inc({ worker: 'clean', status: 'duplicate' });
     } else {
+      metrics.jobsProcessed.inc({ worker: 'clean', status: 'error' });
+      metrics.jobsFailed.inc({ worker: 'CleanWorker' });
       logger.error('[CleanWorker] Erreur insertion:', err.message);
     }
   }
