@@ -2,6 +2,8 @@ const { createWorker }   = require('../queues/index');
 const { computeTrends }  = require('../services/trendService');
 const { publishTrends }  = require('../services/redisService');
 const TrendSnapshot      = require('../models/TrendSnapshot');
+const logger = require('../utils/logger');
+const { metrics } = require('../monitoring/metrics');
 
 
 
@@ -15,11 +17,12 @@ const trendWorker = createWorker('enriched_posts', async (job) => {
       concurrency: 1, 
     });
     setInterval(async () => {
-    console.log('[TrendWorker] Calcul périodique des tendances…');
+    logger.info('[TrendWorker] Calcul périodique des tendances…');
     try {
 
       // 1. Calcule les tendances
       const trends = await computeTrends();
+      metrics.trendsComputed.set(trends.length);
 
       if (trends.length > 0) {
       await TrendSnapshot.insertMany(
@@ -27,23 +30,26 @@ const trendWorker = createWorker('enriched_posts', async (job) => {
       );
 
       trendCount += trends.length;
+      metrics.jobsProcessed.inc({ worker: 'trend', status: 'success' });
 
       // 3. Publie sur Redis → WebSocket → Frontend
       await publishTrends(trends);
 
-      console.log(`[TrendWorker] ${trends.length} tendances insérées et publiées`);
+      logger.info(`[TrendWorker] ${trends.length} tendances insérées et publiées`);
     } else {
-      console.log('[TrendWorker] Aucune tendance calculée');
+      logger.info('[TrendWorker] Aucune tendance calculée');
       }
     } catch (err) {
       failedCount++;
-      console.error('[TrendWorker] Erreur calcul tendances:', err.message);
+      metrics.jobsProcessed.inc({ worker: 'trend', status: 'error' });
+      metrics.jobsFailed.inc({ worker: 'TrendWorker' });
+      logger.error('[TrendWorker] Erreur calcul tendances:', err.message);
     }
   }, 60000); // toutes les 60 secondesb
 
 // Stats toutes les minutes
 setInterval(() => {
-  console.log(`[TrendWorker] Stats — snapshots: ${trendCount} | erreurs: ${failedCount}`);
+  logger.info(`[TrendWorker] Stats — snapshots: ${trendCount} | erreurs: ${failedCount}`);
 }, 60000);
 
 module.exports = trendWorker;
