@@ -10,14 +10,16 @@ let processedCount = 0;
 let failedCount    = 0;
 
 const cleanWorker = createWorker('raw_posts', async (job) => {
+  const end = metrics.jobDuration.startTimer({ worker: 'clean' });
   const post = job.data;
 
-  // 1. Nettoie et valide
-  const cleaned = cleanPost(post);
-  if (!cleaned) {
-    failedCount++;
-    return { skipped: true, reason: 'invalid post' };
-  }
+  try {
+    // 1. Nettoie et valide
+    const cleaned = cleanPost(post);
+    if (!cleaned) {
+      failedCount++;
+      return { skipped: true, reason: 'invalid post' };
+    }
   // 2. Persiste dans posts_clean
   try {
     const doc = new CleanPost(cleaned);
@@ -35,14 +37,15 @@ const cleanWorker = createWorker('raw_posts', async (job) => {
     }
   }
 
-  // 2. Envoie vers la queue suivante
+  // 3. Envoie vers la queue suivante
   await processedQueue.add('enrich-post', cleaned, {
     priority: post.score > 100 ? 1 : 2,  // posts populaires prioritaires
   });
 
   processedCount++;
   return { success: true, redditId: post.redditId };
-}, {
+ } finally{end();} }
+, {
   concurrency: 10,  // 10 posts nettoyés en parallèle
 });
 
