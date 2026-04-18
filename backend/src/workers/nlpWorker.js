@@ -2,6 +2,8 @@ const { createWorker }  = require('../queues/index');
 const { enrichedQueue } = require('../queues/postQueue');
 const { enrichPost }    = require('../processors/nlpProcessor');
 const EnrichedPost      = require('../models/EnrichedPost');
+const logger = require('../utils/logger');
+const { metrics } = require('../monitoring/metrics');
 
 let enrichedCount = 0;
 let failedCount   = 0;
@@ -24,10 +26,13 @@ const nlpWorker = createWorker('processed_posts', async (job) => {
     await enrichedQueue.add('compute-trends', enriched);
 
     enrichedCount++;
+    metrics.jobsProcessed.inc({ worker: 'nlp', status: 'success' });
     return { success: true, keywords: enriched.keywords };
   } catch (err) {
     failedCount++;
-    console.error('[NLPWorker] Erreur enrichissement:', err.message);
+    metrics.jobsProcessed.inc({ worker: 'nlp', status: 'error' });
+    metrics.jobsFailed.inc({ worker: 'NLPWorker' });
+    logger.error('[NLPWorker] Erreur enrichissement:', err.message);
     return { failed: true, redditId: post.redditId };
   }
 }, {
@@ -36,7 +41,7 @@ const nlpWorker = createWorker('processed_posts', async (job) => {
 
 // Stats toutes les minutes
 setInterval(() => {
-  console.log(`[NLPWorker] Stats — enrichis: ${enrichedCount} | échoués: ${failedCount}`);
+  logger.info(`[NLPWorker] Stats — enrichis: ${enrichedCount} | échoués: ${failedCount}`);
 }, 60000);
 
 module.exports = nlpWorker;
