@@ -1,4 +1,5 @@
 const { createQueue } = require('./index');
+const logger = require('../utils/logger');
 
 // 3 queues — une par étape du pipeline
 const rawQueue       = createQueue('raw_posts');
@@ -22,7 +23,7 @@ async function addRawPosts(posts) {
   }));
 
   await rawQueue.addBulk(jobs);
-  console.log(`[Queue] ${jobs.length} posts uniques ajoutés (${posts.length - jobs.length} doublons ignorés)`);
+  logger.info(`[Queue] ${jobs.length} posts uniques ajoutés (${posts.length - jobs.length} doublons ignorés)`);
   return jobs.length;
 }
 

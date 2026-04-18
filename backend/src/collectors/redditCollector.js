@@ -3,6 +3,7 @@ const axios = require('axios');
 const { getCategory } = require('../services/categoryService');
 const { addRawPosts } = require('../queues/postQueue');
 const RawPost = require('../models/RawPost');
+const logger = require('../utils/logger');
 
 
 
@@ -68,13 +69,13 @@ async function fetchAllSubreddits() {
 
   for (const sub of TECH_SUBREDDITS) {
     try {
-      console.log(`[Collector] Fetching r/${sub}...`);
+      logger.info(`[Collector] Fetching r/${sub}...`);
       const posts = await fetchSubredditPosts(sub);
-      console.log(`[Collector] r/${sub} → ${posts.length} posts collectés`);
+      logger.info(`[Collector] r/${sub} → ${posts.length} posts collectés`);
 
       // 👉 Envoie dans la Raw Queue
       const addedCount = await addRawPosts(posts);
-      console.log(`[Collector] r/${sub} → ${addedCount} posts envoyés dans raw_posts`);
+      logger.info(`[Collector] r/${sub} → ${addedCount} posts envoyés dans raw_posts`);
 
       // 👉 Enregistre aussi dans MongoDB
       for (const p of posts) {
@@ -88,11 +89,11 @@ async function fetchAllSubreddits() {
       await new Promise(r => setTimeout(r, 5000));
 
     } catch (err) {
-      console.error(`[Collector] Erreur r/${sub}:`, err.message); 
+      logger.error(`[Collector] Erreur r/${sub}:`, err.message); 
     }
   }
 
-  console.log(`[Collector] Total collecté: ${allPosts.length} posts`);
+  logger.info(`[Collector] Total collecté: ${allPosts.length} posts`);
   return allPosts; // 👉 retourne un tableau de posts valides
 }
 
@@ -116,12 +117,12 @@ async function fetchAllSubreddits() {
     });
 
     await post.save();
-    console.log(`[Collector] Post ${redditPost.redditId} inséré dans posts_raw`);
+    logger.info(`[Collector] Post ${redditPost.redditId} inséré dans posts_raw`);
   } catch (err) {
     if (err.code === 11000) {
-      console.log(`[Collector] Post ${redditPost.redditId} déjà existant`);
+      logger.info(`[Collector] Post ${redditPost.redditId} déjà existant`);
     } else {
-      console.error('[Collector] Erreur insertion:', err.message);
+      logger.error('[Collector] Erreur insertion:', err.message);
     }
   }
 }

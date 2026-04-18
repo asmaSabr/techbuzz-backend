@@ -2,14 +2,15 @@ const { createClient } = require('redis');
 
 const publisher  = createClient({ url: process.env.REDIS_URL });
 const subscriber = createClient({ url: process.env.REDIS_URL });
+const logger = require('../utils/logger');
 
 async function connectRedis() {
   try {
     await publisher.connect();
     await subscriber.connect();
-    console.log('[Redis] Connecté');
+    logger.info('[Redis] Connecté');
   } catch (err) {
-    console.error('[Redis] Erreur de connexion', err);
+    logger.error('[Redis] Erreur de connexion', err);
   }
 }
 

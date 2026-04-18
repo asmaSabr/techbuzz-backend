@@ -1,4 +1,5 @@
 const { Queue, Worker, QueueEvents } = require('bullmq');
+const logger = require('../utils/logger');
 
 const connection = {
   host: process.env.REDIS_HOST || 'localhost',
@@ -29,13 +30,13 @@ function createWorker(name, processor, opts = {}) {
 
   // Logs standards pour tous les workers
   worker.on('completed', job => {
-    console.log(`[${name}] ✓ Job ${job.id} complété`);
+    logger.info(`[${name}] ✓ Job ${job.id} complété`);
   });
   worker.on('failed', (job, err) => {
-    console.error(`[${name}] ✗ Job ${job.id} échoué:`, err.message);
+    logger.error(`[${name}] ✗ Job ${job.id} échoué:`, err.message);
   });
   worker.on('error', err => {
-    console.error(`[${name}] Erreur worker:`, err.message);
+    logger.error(`[${name}] Erreur worker:`, err.message);
   });
 
   return worker;

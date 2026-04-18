@@ -1,4 +1,5 @@
-// Logique pure — pas de side effects, facile à tester
+const logger = require('../utils/logger');
+
 function normalizeText(text) {
   return text
     .trim()
@@ -19,7 +20,7 @@ function isValidPost(post) {
 
 function cleanPost(post) {
   if (!isValidPost(post)) {
-    console.log(`[CleanProcessor] Post rejeté: redditId=${post.redditId || 'N/A'} | title="${post.title}" | scoreRaw=${post.scoreRaw}`);
+    logger.info(`[CleanProcessor] Post rejeté: redditId=${post.redditId || 'N/A'} | title="${post.title}" | scoreRaw=${post.scoreRaw}`);
     return null;
   }
 
@@ -34,7 +35,7 @@ function cleanPost(post) {
     cleanedAt:    new Date(),
   };
 
-  console.log(`[CleanProcessor] Post accepté: redditId=${cleaned.redditId} | subreddit=${cleaned.subreddit} | score=${cleaned.score}`);
+  logger.info(`[CleanProcessor] Post accepté: redditId=${cleaned.redditId} | subreddit=${cleaned.subreddit} | score=${cleaned.score}`);
   return cleaned;
 }
 

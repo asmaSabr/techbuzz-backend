@@ -2,6 +2,7 @@ const { createWorker } = require('../queues/index');
 const { processedQueue } = require('../queues/postQueue');
 const { cleanPost } = require('../processors/cleanProcessor');
 const CleanPost = require('../models/CleanPost');
+const logger = require('../utils/logger');
 
 
 let processedCount = 0;
@@ -20,12 +21,12 @@ const cleanWorker = createWorker('raw_posts', async (job) => {
   try {
     const doc = new CleanPost(cleaned);
     await doc.save();
-    console.log(`[CleanWorker] Post ${cleaned.redditId} inséré dans posts_clean`);
+    logger.info(`[CleanWorker] Post ${cleaned.redditId} inséré dans posts_clean`);
   } catch (err) {
     if (err.code === 11000) {
-      console.log(`[CleanWorker] Post ${cleaned.redditId} déjà existant`);
+      logger.info(`[CleanWorker] Post ${cleaned.redditId} déjà existant`);
     } else {
-      console.error('[CleanWorker] Erreur insertion:', err.message);
+      logger.error('[CleanWorker] Erreur insertion:', err.message);
     }
   }
 
@@ -42,7 +43,7 @@ const cleanWorker = createWorker('raw_posts', async (job) => {
 
 // Stats toutes les minutes
 setInterval(() => {
-  console.log(`[CleanWorker] Stats — traités: ${processedCount} | invalides: ${failedCount}`);
+  logger.info(`[CleanWorker] Stats — traités: ${processedCount} | invalides: ${failedCount}`);
 }, 60000);
 
 module.exports = cleanWorker;

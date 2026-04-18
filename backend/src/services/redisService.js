@@ -1,10 +1,10 @@
 const { publisher, subscriber } = require('../config/redis');
-
+const logger = require('../utils/logger');
 
 async function publishTrends(trends) {
   await publisher.publish('trends:update', JSON.stringify(trends));
   await publisher.setEx('trends:latest', 300, JSON.stringify(trends));
-  console.log('[Redis] Tendances publiées');
+  logger.info('[Redis] Tendances publiées');
 }
 
 async function getLatestTrends() {
