@@ -1,0 +1,30 @@
+const { createQueue } = require('./index');
+const logger = require('../utils/logger');
+
+// 3 queues — une par étape du pipeline
+const rawQueue       = createQueue('raw_posts');
+const processedQueue = createQueue('processed_posts');
+const enrichedQueue  = createQueue('enriched_posts');
+
+// Ajoute les posts bruts en batch
+async function addRawPosts(posts) {
+  // Déduplique avant d'envoyer dans la queue
+  const seen = new Set();
+  const unique = posts.filter(p => {
+    if (seen.has(p.redditId)) return false;
+    seen.add(p.redditId);
+    return true;
+  });
+
+  // Ajoute en bulk — plus performant qu'un add par un
+  const jobs = unique.map(post => ({
+    name: 'clean-post',
+    data: post,
+  }));
+
+  await rawQueue.addBulk(jobs);
+  logger.info(`[Queue] ${jobs.length} posts uniques ajoutés (${posts.length - jobs.length} doublons ignorés)`);
+  return jobs.length;
+}
+
+module.exports = { rawQueue, processedQueue, enrichedQueue, addRawPosts };

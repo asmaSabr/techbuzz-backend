@@ -1,91 +1,145 @@
-const Post = require('../models/Post');
+const EnrichedPost = require('../models/EnrichedPost');
 
-const TECH_KEYWORDS = [
-  // Langages
-  'python', 'javascript', 'typescript', 'rust', 'golang', 'java',
-  'kotlin', 'swift', 'php', 'ruby', 'scala', 'cpp', 'c++',
-  // Frameworks
-  'react', 'vue', 'angular', 'nextjs', 'svelte', 'fastapi',
-  'django', 'flask', 'express', 'spring', 'laravel',
-  // IA / ML
-  'ai', 'machine learning', 'deep learning', 'llm', 'gpt',
-  'chatgpt', 'claude', 'gemini', 'tensorflow', 'pytorch',
-  'neural network', 'nlp', 'computer vision',
-  // DevOps / Cloud
-  'docker', 'kubernetes', 'aws', 'azure', 'gcp',
-  'terraform', 'devops', 'ci/cd', 'linux',
-  // Bases de données
-  'mongodb', 'postgresql', 'mysql', 'redis', 'elasticsearch',
-  'sqlite', 'supabase', 'prisma',
-  // Tendances
-  'webassembly', 'wasm', 'blockchain', 'web3', 'graphql',
-  'microservices', 'serverless', 'edge computing',
-];
-
-function extractKeywords(title) {
-  const lower = title.toLowerCase();
-  return TECH_KEYWORDS.filter(kw => lower.includes(kw));
+// ─────────────────────────────────────────────
+// TF-IDF : extraction de keywords sans stopwords
+// ─────────────────────────────────────────────
+function tokenize(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length > 2 && !/^\d+$/.test(w));
 }
 
+function computeTFIDF(titles) {
+  const tokenizedTitles = titles.map(tokenize);
+  const N = tokenizedTitles.length;
+
+  // IDF : nombre de documents contenant chaque mot
+  const docFreq = {};
+  for (const tokens of tokenizedTitles) {
+    const unique = new Set(tokens);
+    for (const word of unique) {
+      docFreq[word] = (docFreq[word] || 0) + 1;
+    }
+  }
+
+  const result = new Map();
+
+  titles.forEach((title, i) => {
+    const tokens = tokenizedTitles[i];
+    if (tokens.length === 0) {
+      result.set(title, []);
+      return;
+    }
+
+    // TF
+    const tf = {};
+    for (const word of tokens) {
+      tf[word] = (tf[word] || 0) + 1 / tokens.length;
+    }
+
+    // Score TF-IDF
+    const scores = Object.entries(tf).map(([word, tfScore]) => {
+      const idf = Math.log(N / (docFreq[word] || 1));
+      return { word, score: tfScore * idf };
+    });
+
+    // Top 6 keywords par score décroissant, score > 0 uniquement
+    const keywords = scores
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 6)
+      .filter(({ score }) => score > 0)
+      .map(({ word }) => word);
+
+    result.set(title, keywords);
+  });
+
+  return result;
+}
+
+// ─────────────────────────────────────────────
+// extractKeywords : utilisé par le NLP Worker
+// (TF-IDF sur un seul titre = fallback simple)
+// ─────────────────────────────────────────────
+function extractKeywords(title) {
+  if (!title) return [];
+  return tokenize(title);
+}
+
+// ─────────────────────────────────────────────
+// computeTrends : appelé par le Trend Worker
+// ─────────────────────────────────────────────
 async function computeTrends(hoursBack = 24) {
   const since = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
-  const posts = await Post.find({ collectedAt: { $gte: since } });
-  const recentPosts = await Post.find({ collectedAt: { $gte: oneHourAgo } });
+  const posts = await EnrichedPost.find({ enrichedAt: { $gte: since } });
+  const recentPosts = await EnrichedPost.find({ enrichedAt: { $gte: oneHourAgo } });
 
-  // Compter les occurrences récentes pour le momentum
+  if (posts.length === 0) return [];
+
+  // 1. TF-IDF sur le corpus complet
+  const titles = posts.map(p => p.title || p.content || '');
+  const tfidfMap = computeTFIDF(titles);
+
+  // 2. Momentum : keywords récents
+  const recentTitles = recentPosts.map(p => p.title || p.content || '');
+  const recentTfidfMap = computeTFIDF(recentTitles);
+
   const recentMap = {};
-  for (const post of recentPosts) {
-    for (const kw of post.keywords || []) {
+  for (const keywords of recentTfidfMap.values()) {
+    for (const kw of keywords) {
       recentMap[kw] = (recentMap[kw] || 0) + 1;
     }
   }
 
+  // 3. Agrégation des tendances
   const map = {};
-  for (const post of posts) {
-    for (const kw of post.keywords || []) {
+
+  posts.forEach((post, i) => {
+    const keywords = tfidfMap.get(titles[i]) || [];
+
+    for (const kw of keywords) {
       if (!map[kw]) {
         map[kw] = {
           keyword: kw,
           count: 0,
           totalScore: 0,
-          totalComments: 0,
           recentCount: recentMap[kw] || 0,
           sentimentScores: [],
-          subreddits: new Set(),
-          posts: [],
+          sentimentDistribution: { positive: 0, negative: 0, neutral: 0 },
+          category: post.category || null,
         };
       }
       map[kw].count++;
-      map[kw].totalScore += post.score;
-      map[kw].totalComments += post.numComments;
-      map[kw].subreddits.add(post.subreddit);
+      map[kw].totalScore += post.engagementScore || 0;
       map[kw].sentimentScores.push(post.sentimentScore || 0);
-      map[kw].posts.push({ title: post.title, score: post.score, url: post.url });
-    }
-  }
 
+      if (post.sentiment === 'positive')       map[kw].sentimentDistribution.positive++;
+      else if (post.sentiment === 'negative')  map[kw].sentimentDistribution.negative++;
+      else                                     map[kw].sentimentDistribution.neutral++;
+    }
+  });
+
+  // 4. Calcul final + tri
   return Object.values(map)
     .map(d => {
-      const avgScore = Math.round(d.totalScore / d.count);
-      const momentum = d.count > 0 
-        ? Math.round((d.recentCount / d.count) * 100) 
-        : 0;
+      const avgScore   = d.count > 0 ? Math.round(d.totalScore / d.count) : 0;
+      const momentum   = d.count > 0 ? Math.round((d.recentCount / d.count) * 100) : 0;
       const avgSentiment = d.sentimentScores.length > 0
         ? d.sentimentScores.reduce((a, b) => a + b, 0) / d.sentimentScores.length
         : 0;
 
       return {
-        keyword: d.keyword,
-        count: d.count,
-        totalScore: d.totalScore,
+        keyword:              d.keyword,
+        count:                d.count,
+        totalScore:           d.totalScore,
         avgScore,
-        totalComments: d.totalComments,
-        momentum,        // % des mentions dans la dernière heure
-        avgSentiment: Math.round(avgSentiment * 100) / 100,
-        subreddits: [...d.subreddits],
-        topPost: d.posts.sort((a, b) => b.score - a.score)[0],
+        momentum,
+        avgSentiment:         Math.round(avgSentiment * 100) / 100,
+        sentimentDistribution: d.sentimentDistribution,
+        category:             d.category,
       };
     })
     .filter(d => d.count >= 2)

@@ -1,6 +1,11 @@
 require('dotenv').config();
 const axios = require('axios');
 const { getCategory } = require('../services/categoryService');
+const { addRawPosts } = require('../queues/postQueue');
+const RawPost = require('../models/RawPost');
+const logger = require('../utils/logger');
+
+
 
 const TECH_SUBREDDITS = [
   'programming',
@@ -33,18 +38,17 @@ async function fetchSubredditPosts(subreddit, limit = 100) {
   const posts = res.data.data.children;
 
   return posts.map(({ data }) => {
-     // On prend quelques mots-clés pour la classification
-    const keywords = [
-      data.subreddit.toLowerCase(),
-      ...(data.title.toLowerCase().split(' ')) // découper le titre en mots
-    ];
-    const category = getCategory(keywords);
+    
+    const category = getCategory([data.subreddit.toLowerCase()]);
 
     return {
         redditId:    data.id,
         title:       data.title,
+        content:     data.selftext || null,
+        author:      data.author,
         subreddit:   data.subreddit,
-        score:       data.score,
+        scoreRaw:    data.score,                  // score original
+        scoreNorm:   Math.max(0, data.score),     // score borné
         upvoteRatio: data.upvote_ratio,
         numComments: data.num_comments,
         url:         data.url,
@@ -57,25 +61,66 @@ async function fetchSubredditPosts(subreddit, limit = 100) {
 }
 
 async function fetchAllSubreddits() {
-  const allPosts = [];
+  let allPosts = [];
 
   for (const sub of TECH_SUBREDDITS) {
     try {
-      console.log(`[Collector] Fetching r/${sub}...`);
+      logger.info(`[Collector] Fetching r/${sub}...`);
       const posts = await fetchSubredditPosts(sub);
+      logger.info(`[Collector] r/${sub} → ${posts.length} posts collectés`);
+
+      // 👉 Envoie dans la Raw Queue
+      const addedCount = await addRawPosts(posts);
+      logger.info(`[Collector] r/${sub} → ${addedCount} posts envoyés dans raw_posts`);
+
+      // 👉 Enregistre aussi dans MongoDB
+      for (const p of posts) {
+        await saveRawPost(p);
+      }
+
+      // 👉 Ajoute au tableau global
       allPosts.push(...posts);
 
-      // Pause 5 secondes entre chaque requête
-      // pour éviter d'être bloqué par Reddit
+      // Pause pour éviter le blocage par Reddit
       await new Promise(r => setTimeout(r, 5000));
 
     } catch (err) {
-      console.error(`[Collector] Erreur r/${sub}:`, err.message);
+      logger.error(`[Collector] Erreur r/${sub}:`, err.message); 
     }
   }
 
-  console.log(`[Collector] Total collecté : ${allPosts.length} posts`);
-  return allPosts;
+  logger.info(`[Collector] Total collecté: ${allPosts.length} posts`);
+  return allPosts; // 👉 retourne un tableau de posts valides
+}
+
+
+  // Fonction d'insertion dans RawPost Base de données (non utilisée directement, mais peut être utile pour tests ou autres usages)
+  async function saveRawPost(redditPost) {
+  try {
+    const post = new RawPost({
+      redditId: redditPost.redditId,
+      title: redditPost.title,
+      content: redditPost.selftext || null,
+      author: redditPost.author,
+      subreddit: redditPost.subreddit,
+      scoreRaw: redditPost.score,
+      upvoteRatio: redditPost.upvote_ratio,
+      numComments: redditPost.num_comments,
+      url: redditPost.url,
+      flair: redditPost.link_flair_text,
+      createdAt: redditPost.createdAt,
+      collectedAt: redditPost.collectedAt,
+    });
+
+    await post.save();
+    logger.info(`[Collector] Post ${redditPost.redditId} inséré dans posts_raw`);
+  } catch (err) {
+    if (err.code === 11000) {
+      logger.info(`[Collector] Post ${redditPost.redditId} déjà existant`);
+    } else {
+      logger.error('[Collector] Erreur insertion:', err.message);
+    }
+  }
 }
 
 module.exports = { fetchAllSubreddits, fetchSubredditPosts };
