@@ -1,0 +1,22 @@
+# python-services/nlp-worker/requirements.txt
+
+# === CORE ===
+fastapi==0.104.1
+uvicorn==0.24.0
+redis==5.0.1
+python-dotenv==1.0.0
+pydantic==2.5.0
+
+# === NLP & ML (VERSIONS BLOQUÉES POUR STABILITÉ) ===
+# Ces versions doivent être identiques pour éviter les crashes
+transformers==4.30.2
+sentence-transformers==2.2.2
+keybert==0.8.1
+huggingface_hub==0.16.4    
+tokenizers==0.13.3
+spacy==3.7.2
+
+# === UTILS ===
+nltk==3.8.1
+tqdm==4.66.1
+prometheus-client==0.19.0

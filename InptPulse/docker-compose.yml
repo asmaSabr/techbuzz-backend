@@ -1,0 +1,118 @@
+version: '3.9'
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: techbuzz_mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: techbuzz
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - techbuzz-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: techbuzz_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - techbuzz-network
+    
+  timescaledb:
+    image: timescale/timescaledb:latest-pg15
+    container_name: techbuzz_timescaledb
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: techbuzz
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./init-timescaledb:/docker-entrypoint-initdb.d  # ← Lance ton script SQL automatiquement
+    networks:
+      - techbuzz-network
+
+ 
+  nlp-worker:
+    build:
+      context: ./python-services/nlp-worker # ← Utilise les fichiers Python créés à l'étape 3
+      dockerfile: Dockerfile
+    container_name: techbuzz_nlp_worker
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./python-services/nlp-worker:/app   # ← HOT-RELOAD Python
+    depends_on:
+      - redis
+    networks:
+      - techbuzz-network
+  
+  mongo-express:
+    image: mongo-express
+    container_name: techbuzz_mongoui
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+      ME_CONFIG_MONGODB_ADMINPASSWORD: password123
+      ME_CONFIG_MONGODB_URL: mongodb://admin:password123@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin        
+      ME_CONFIG_BASICAUTH_PASSWORD: password123  
+    depends_on:
+      - mongodb
+    networks:
+      - techbuzz-network
+  
+  prometheus:
+    image: prom/prometheus
+    container_name: techbuzz_prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+
+  grafana:
+    image: grafana/grafana
+    container_name: techbuzz_grafana
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+networks:
+  techbuzz-network:
+    driver: bridge
+
+volumes:
+  mongo_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+  timescaledb_data:
+

@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  # Backend Node.js
+  - job_name: 'techbuzz-backend'
+    static_configs:
+      - targets: ['backend:3001']  # Ton API Node expose /metrics sur le port 3001
+    metrics_path: /metrics
+
+  # Worker Python NLP
+  - job_name: 'techbuzz-nlp-worker'
+    static_configs:
+      - targets: ['nlp-worker:8001']  # Le serveur Prometheus Python sur port 8001
+    metrics_path: /metrics
+
+  # Redis (optionnel, via redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']

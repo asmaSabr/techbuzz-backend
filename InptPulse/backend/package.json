@@ -1,0 +1,41 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "nodemon src/app.js",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@apollo/server": "^4.13.0",
+    "@bull-board/express": "^7.0.0",
+    "@graphql-tools/schema": "^10.0.32",
+    "axios": "^1.15.0",
+    "bullmq": "^5.74.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "graphql": "^16.13.2",
+    "graphql-subscriptions": "^3.0.0",
+    "graphql-tag": "^2.12.6",
+    "graphql-ws": "^6.0.8",
+    "mongoose": "^9.4.1",
+    "node-cron": "^4.2.1",
+    "prom-client": "^15.1.3",
+    "redis": "^5.11.0",
+    "socket.io": "^4.8.3",
+    "winston": "^3.19.0",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0"
+  }
+}
